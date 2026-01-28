@@ -1,0 +1,58 @@
+{
+  "editor.fontFamily": "Cascadia Code, 'monospace', monospace",
+  "editor.fontLigatures": "'calt', 'ss01'",
+  "editor.fontSize": 11,
+  "editor.tokenColorCustomizations": {
+    "textMateRules": [
+      {
+        "scope": [
+          "comment",
+          "entity.name.type.class", //class names
+          "entity.other.attribute-name", //HTML Attributes
+          "keyword", //import, export, return…
+          "storage",
+          "constant", //String, Number, Boolean…, this, super
+          "storage.modifier", //static keyword
+          "storage.type.class.js" //class keyword
+        ],
+        "settings": {
+          "fontStyle": "italic"
+        }
+      }
+    ]
+  },
+  "editor.formatOnSave": true,
+  "terminal.integrated.fontFamily": "Cascadia Mono",
+  "terminal.integrated.fontSize": 10,
+  "window.zoomLevel": 1.1,
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "files.readonlyInclude": {
+    "**/.cargo/registry/src/**/*.rs": true,
+    "**/.cargo/git/checkouts/**/*.rs": true,
+    "**/lib/rustlib/src/rust/library/**/*.rs": true
+  },
+  "print.folder.fileNames": true,
+  "print.folder.include": [],
+  "print.folder.exclude": [
+    "{bin,obj,out}",
+    "node_modules",
+    "data",
+    "**/*.{bin,exe,dll,hex,pdb,pdf,pfx,png,jpg,gif,bmp,suo,design}"
+  ],
+  {
+  "print.folder.maxLines": 1200,
+  "print.folder.maxFiles": 30,
+  "print.folder.includeFileList": false,
+  "idf.hasWalkthroughBeenShown": true,
+  "idf.espIdfPathWin": "d:\\ESP-SDK\\v5.5.2\\esp-idf",
+  "idf.toolsPathWin": "d:\\esp-idf_official\\Espressif",
+  "idf.pythonInstallPath": "d:\\esp-idf_official\\Espressif\\python_env\\idf5.5_py3.13_env\\Scripts\\python.exe",
+  "idf.gitPathWin": "d:\\esp-idf_official\\Espressif\\tools\\idf-git\\2.39.2\\cmd\\git.exe",
+  "window.customTitleBarVisibility": "windowed"
+}
