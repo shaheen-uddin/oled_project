@@ -37,11 +37,16 @@ void app_main(void) {
   // Clear entire display
   sh1106_clear_display(&display);
 
-  // Write fixed header text (Pages 0-1)
+  // Write fixed header text (Pages 0-2, total 24 pixels)
+  // First line at page 0 (pixels 0-7)
+  // Leave page 1 empty for spacing (pixels 8-15)
+  // Second line at page 2 (pixels 16-23)
   sh1106_write_text(&display, SECTION_HEADER, "  HEADER  ", 0, 0);
-  sh1106_write_text(&display, SECTION_HEADER, "1.3\" OLED", 0, 1);
+  sh1106_write_text(&display, SECTION_HEADER, "1.3\" OLED", 0,
+                    2); // Skip to page 2 for spacing
 
-  // Write fixed footer text (Pages 6-7)
+  // Write fixed footer text (Pages 6-7, total 16 pixels)
+  // For footer, we can add some spacing too by using offset
   sh1106_write_text(&display, SECTION_FOOTER, "  FOOTER  ", 0, 0);
   sh1106_write_text(&display, SECTION_FOOTER, "ESP32-IDF", 0, 1);
 
@@ -57,8 +62,8 @@ void app_main(void) {
     // Clear body section
     sh1106_clear_section(&display, SECTION_BODY);
 
-    // Write current body text (centered in body section)
-    // Body section has 4 pages, we'll use pages 0 and 2 (relative to body)
+    // Write current body text (body section now has pages 3-5, which is 3 pages
+    // = 24 pixels) Center the text vertically in the body section
     sh1106_write_text(&display, SECTION_BODY, body_texts[text_index], 8, 1);
 
     // You can add more lines in the body if needed

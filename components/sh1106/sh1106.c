@@ -5,6 +5,7 @@
 #include "freertos/task.h"
 #include <string.h>
 
+
 static const char *TAG = "SH1106";
 
 // Simple 8x8 font (ASCII 32-127)
@@ -216,15 +217,15 @@ esp_err_t sh1106_clear_section(sh1106_handle_t *handle,
   switch (section) {
   case SECTION_HEADER:
     start_page = 0;
-    num_pages = 2;
+    num_pages = 3; // Pages 0-2
     break;
   case SECTION_BODY:
-    start_page = 2;
-    num_pages = 4;
+    start_page = 3;
+    num_pages = 3; // Pages 3-5
     break;
   case SECTION_FOOTER:
     start_page = 6;
-    num_pages = 2;
+    num_pages = 2; // Pages 6-7
     break;
   default:
     return ESP_ERR_INVALID_ARG;
@@ -237,22 +238,28 @@ esp_err_t sh1106_clear_section(sh1106_handle_t *handle,
   return ESP_OK;
 }
 
-esp_err_t sh1106_write_text(sh1106_handle_t *handle, sh1106_section_t section,
-                            const char *text, uint8_t x, uint8_t y) {
+esp_err_t sh1106_write_text_offset(sh1106_handle_t *handle,
+                                   sh1106_section_t section, const char *text,
+                                   uint8_t x, uint8_t y, uint8_t v_offset) {
   uint8_t start_page;
 
   switch (section) {
   case SECTION_HEADER:
-    start_page = 0;
+    start_page = 0; // Pages 0-2
     break;
   case SECTION_BODY:
-    start_page = 2;
+    start_page = 3; // Pages 3-5
     break;
   case SECTION_FOOTER:
-    start_page = 6;
+    start_page = 6; // Pages 6-7
     break;
   default:
     return ESP_ERR_INVALID_ARG;
+  }
+
+  // Limit vertical offset to prevent overflow
+  if (v_offset > 7) {
+    v_offset = 7;
   }
 
   uint8_t page = start_page + y;
@@ -261,14 +268,34 @@ esp_err_t sh1106_write_text(sh1106_handle_t *handle, sh1106_section_t section,
   for (size_t i = 0; text[i] != '\0' && col < SH1106_WIDTH; i++) {
     uint8_t c = text[i];
     if (c >= 32 && c <= 126) {
-      // Copy font character to buffer
+      // Copy font character to buffer with vertical offset
       for (uint8_t j = 0; j < 8 && col < SH1106_WIDTH; j++) {
-        handle->buffer[page][col++] = font_8x8[c - 32][j];
+        // Shift the font data down by v_offset pixels
+        uint8_t font_data = font_8x8[c - 32][j];
+
+        if (v_offset > 0) {
+          // Split across two pages if offset is used
+          uint8_t upper_bits = font_data << v_offset;
+          uint8_t lower_bits = font_data >> (8 - v_offset);
+
+          handle->buffer[page][col] |= upper_bits;
+          if (page + 1 < SH1106_PAGES) {
+            handle->buffer[page + 1][col] |= lower_bits;
+          }
+        } else {
+          handle->buffer[page][col] = font_data;
+        }
+        col++;
       }
     }
   }
 
   return ESP_OK;
+}
+
+esp_err_t sh1106_write_text(sh1106_handle_t *handle, sh1106_section_t section,
+                            const char *text, uint8_t x, uint8_t y) {
+  return sh1106_write_text_offset(handle, section, text, x, y, 0);
 }
 
 esp_err_t sh1106_update_display(sh1106_handle_t *handle) {
