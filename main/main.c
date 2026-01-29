@@ -14,9 +14,9 @@ static const char *TAG = "MAIN";
 #define I2C_MASTER_FREQ_HZ 400000 // I2C frequency
 
 // Array of body texts to rotate through
-static const char *body_texts[] = {"Message 1",   "Message 2",   "Message 3",
+static const char *body_texts[] = {"Hello, World!!!",   "Found solution!",   "Clangd - awesome!!!",
                                    "Hello ESP32", "SH1106 OLED", "Dynamic Text",
-                                   "Rotating...", "ESP-IDF Demo"};
+                                   "Rotating...", "ESP-IDF Stable!!!"};
 
 #define BODY_TEXT_COUNT (sizeof(body_texts) / sizeof(body_texts[0]))
 
