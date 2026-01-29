@@ -2,7 +2,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "sh1106.h"
-#include "sh1106_fonts.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -26,9 +25,9 @@ void app_main(void) {
   // Initialize display handle
   sh1106_handle_t display;
 
-  // Initialize display
-  esp_err_t ret = sh1106_init(&display, I2C_NUM_0, I2C_MASTER_SDA_IO,
-                              I2C_MASTER_SCL_IO, I2C_MASTER_FREQ_HZ);
+  // Initialize display (new I2C master API - no port parameter needed)
+  esp_err_t ret = sh1106_init(&display, I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO,
+                              I2C_MASTER_FREQ_HZ);
 
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "Failed to initialize SH1106 display");
@@ -38,20 +37,19 @@ void app_main(void) {
   // Clear entire display
   sh1106_clear_display(&display);
 
-  // Write fixed header text (Pages 0-2, total 24 pixels) with BOLD font for
-  // better visibility First line at page 0 (pixels 0-7) Leave page 1 empty for
-  // spacing (pixels 8-15) Second line at page 2 (pixels 16-23)
-  sh1106_write_text_centered_font(&display, SECTION_HEADER, "  HEADER  ", 0,
-                                  FONT_5X7_SMALL);
-  sh1106_write_text_centered_font(&display, SECTION_HEADER, "1.3\" OLED", 1,
-                                  FONT_5X7_SMALL);
+  // Write fixed header text (Pages 0-2, total 24 pixels) - CENTERED
+  // First line at page 0 (pixels 0-7) with BOLD font
+  // Leave page 1 empty for spacing (pixels 8-15)
+  // Second line at page 2 (pixels 16-23) with THIN font
+  sh1106_write_text_centered_font(&display, SECTION_HEADER, "HEADER", 0,
+                                  FONT_8X8_BOLD);
+  sh1106_write_text_centered_font(&display, SECTION_HEADER, "1.3\" OLED", 2,
+                                  FONT_6X8_THIN);
 
-  // Write fixed footer text (Pages 6-7, total 16 pixels)
-  // For footer, we can add some spacing too by using offset
-  sh1106_write_text_centered_font(&display, SECTION_FOOTER, "  FOOTER  ", 0,
-                                  FONT_5X7_SMALL);
-  sh1106_write_text_centered_font(&display, SECTION_FOOTER, "ESP32-IDF", 1,
-                                  FONT_5X7_SMALL);
+  // Write fixed footer text (Pages 6-7, total 16 pixels) - CENTERED
+  sh1106_write_text_centered_font(&display, SECTION_FOOTER, "FOOTER", 0,
+                                  FONT_8X8_BOLD);
+  sh1106_write_text_centered(&display, SECTION_FOOTER, "ESP32-IDF", 1);
 
   // Update display to show header and footer
   sh1106_update_display(&display);
@@ -65,13 +63,13 @@ void app_main(void) {
     // Clear body section
     sh1106_clear_section(&display, SECTION_BODY);
 
-    // Write current body text (body section now has pages 3-5, which is 3 pages
-    // = 24 pixels) Center the text vertically in the body section
-    sh1106_write_text_centered_font(&display, SECTION_BODY,
-                                    body_texts[text_index], 0, FONT_8X8_BOLD);
+    // Write current body text CENTERED in the body section
+    // Body section now has pages 3-5, which is 3 pages = 24 pixels
+    sh1106_write_text_centered(&display, SECTION_BODY, body_texts[text_index],
+                               1);
 
     // You can add more lines in the body if needed
-    // sh1106_write_text(&display, SECTION_BODY, "Line 2", 8, 2);
+    // sh1106_write_text_centered(&display, SECTION_BODY, "Line 2", 2);
 
     // Update display
     sh1106_update_display(&display);

@@ -1,76 +1,73 @@
 #include "sh1106.h"
-#include "driver/i2c.h"
+#include "driver/i2c_master.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "sh1106_fonts.h"
 #include <string.h>
 
+
 static const char *TAG = "SH1106";
 
 static esp_err_t sh1106_write_command(sh1106_handle_t *handle, uint8_t cmd) {
   uint8_t data[2] = {0x00, cmd}; // 0x00 = command mode
-
-  i2c_cmd_handle_t i2c_cmd = i2c_cmd_link_create();
-  i2c_master_start(i2c_cmd);
-  i2c_master_write_byte(i2c_cmd, (handle->i2c_address << 1) | I2C_MASTER_WRITE,
-                        true);
-  i2c_master_write(i2c_cmd, data, 2, true);
-  i2c_master_stop(i2c_cmd);
-
-  esp_err_t ret = i2c_master_cmd_begin(handle->i2c_port, i2c_cmd,
-                                       pdMS_TO_TICKS(SH1106_I2C_TIMEOUT_MS));
-  i2c_cmd_link_delete(i2c_cmd);
-
-  return ret;
+  return i2c_master_transmit(handle->dev_handle, data, 2,
+                             SH1106_I2C_TIMEOUT_MS);
 }
 
 static esp_err_t sh1106_write_data(sh1106_handle_t *handle, uint8_t *data,
                                    size_t len) {
-  i2c_cmd_handle_t i2c_cmd = i2c_cmd_link_create();
-  i2c_master_start(i2c_cmd);
-  i2c_master_write_byte(i2c_cmd, (handle->i2c_address << 1) | I2C_MASTER_WRITE,
-                        true);
-  i2c_master_write_byte(i2c_cmd, 0x40, true); // 0x40 = data mode
-  i2c_master_write(i2c_cmd, data, len, true);
-  i2c_master_stop(i2c_cmd);
+  // Allocate buffer for 0x40 prefix + data
+  uint8_t *tx_buffer = malloc(len + 1);
+  if (tx_buffer == NULL) {
+    return ESP_ERR_NO_MEM;
+  }
 
-  esp_err_t ret = i2c_master_cmd_begin(handle->i2c_port, i2c_cmd,
-                                       pdMS_TO_TICKS(SH1106_I2C_TIMEOUT_MS));
-  i2c_cmd_link_delete(i2c_cmd);
+  tx_buffer[0] = 0x40; // 0x40 = data mode
+  memcpy(tx_buffer + 1, data, len);
 
+  esp_err_t ret = i2c_master_transmit(handle->dev_handle, tx_buffer, len + 1,
+                                      SH1106_I2C_TIMEOUT_MS);
+
+  free(tx_buffer);
   return ret;
 }
 
-esp_err_t sh1106_init(sh1106_handle_t *handle, i2c_port_t i2c_port,
-                      gpio_num_t sda_pin, gpio_num_t scl_pin,
-                      uint32_t i2c_freq) {
+esp_err_t sh1106_init(sh1106_handle_t *handle, gpio_num_t sda_pin,
+                      gpio_num_t scl_pin, uint32_t i2c_freq) {
   esp_err_t ret;
 
-  // Configure I2C
-  i2c_config_t conf = {
-      .mode = I2C_MODE_MASTER,
-      .sda_io_num = sda_pin,
+  // Configure I2C master bus
+  i2c_master_bus_config_t bus_config = {
+      .clk_source = I2C_CLK_SRC_DEFAULT,
+      .i2c_port = I2C_NUM_0,
       .scl_io_num = scl_pin,
-      .sda_pullup_en = GPIO_PULLUP_ENABLE,
-      .scl_pullup_en = GPIO_PULLUP_ENABLE,
-      .master.clk_speed = i2c_freq,
+      .sda_io_num = sda_pin,
+      .glitch_ignore_cnt = 7,
+      .flags.enable_internal_pullup = true,
   };
 
-  ret = i2c_param_config(i2c_port, &conf);
+  ret = i2c_new_master_bus(&bus_config, &handle->bus_handle);
   if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "I2C param config failed");
+    ESP_LOGE(TAG, "Failed to create I2C master bus: %s", esp_err_to_name(ret));
     return ret;
   }
 
-  ret = i2c_driver_install(i2c_port, conf.mode, 0, 0, 0);
+  // Configure I2C device (SH1106)
+  i2c_device_config_t dev_config = {
+      .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+      .device_address = SH1106_I2C_ADDRESS,
+      .scl_speed_hz = i2c_freq,
+  };
+
+  ret = i2c_master_bus_add_device(handle->bus_handle, &dev_config,
+                                  &handle->dev_handle);
   if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "I2C driver install failed");
+    ESP_LOGE(TAG, "Failed to add I2C device: %s", esp_err_to_name(ret));
+    i2c_del_master_bus(handle->bus_handle);
     return ret;
   }
 
-  handle->i2c_port = i2c_port;
-  handle->i2c_address = SH1106_I2C_ADDRESS;
   handle->current_font = sh1106_get_font(FONT_8X8_DEFAULT); // Set default font
 
   // Initialize display
@@ -104,6 +101,30 @@ esp_err_t sh1106_init(sh1106_handle_t *handle, i2c_port_t i2c_port,
   memset(handle->buffer, 0, sizeof(handle->buffer));
 
   ESP_LOGI(TAG, "SH1106 initialized successfully");
+  return ESP_OK;
+}
+
+esp_err_t sh1106_deinit(sh1106_handle_t *handle) {
+  esp_err_t ret;
+
+  // Turn off display
+  sh1106_write_command(handle, SH1106_CMD_DISPLAY_OFF);
+
+  // Remove device from bus
+  ret = i2c_master_bus_rm_device(handle->dev_handle);
+  if (ret != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to remove I2C device: %s", esp_err_to_name(ret));
+    return ret;
+  }
+
+  // Delete I2C master bus
+  ret = i2c_del_master_bus(handle->bus_handle);
+  if (ret != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to delete I2C bus: %s", esp_err_to_name(ret));
+    return ret;
+  }
+
+  ESP_LOGI(TAG, "SH1106 deinitialized successfully");
   return ESP_OK;
 }
 

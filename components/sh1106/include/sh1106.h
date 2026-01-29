@@ -1,7 +1,7 @@
 #ifndef SH1106_H
 #define SH1106_H
 
-#include "driver/i2c.h"
+#include "driver/i2c_master.h"
 #include "sh1106_fonts.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -42,8 +42,8 @@ typedef enum {
 
 // SH1106 Handle
 typedef struct {
-  i2c_port_t i2c_port;
-  uint8_t i2c_address;
+  i2c_master_bus_handle_t bus_handle;
+  i2c_master_dev_handle_t dev_handle;
   uint8_t buffer[SH1106_PAGES][SH1106_WIDTH];
   const sh1106_font_t *current_font; // Current font selection
 } sh1106_handle_t;
@@ -52,15 +52,21 @@ typedef struct {
  * @brief Initialize SH1106 display
  *
  * @param handle Pointer to SH1106 handle
- * @param i2c_port I2C port number
  * @param sda_pin SDA GPIO pin
  * @param scl_pin SCL GPIO pin
- * @param i2c_freq I2C frequency in Hz
+ * @param i2c_freq I2C frequency in Hz (typically 100000 or 400000)
  * @return esp_err_t ESP_OK on success
  */
-esp_err_t sh1106_init(sh1106_handle_t *handle, i2c_port_t i2c_port,
-                      gpio_num_t sda_pin, gpio_num_t scl_pin,
-                      uint32_t i2c_freq);
+esp_err_t sh1106_init(sh1106_handle_t *handle, gpio_num_t sda_pin,
+                      gpio_num_t scl_pin, uint32_t i2c_freq);
+
+/**
+ * @brief Deinitialize SH1106 display and free resources
+ *
+ * @param handle Pointer to SH1106 handle
+ * @return esp_err_t ESP_OK on success
+ */
+esp_err_t sh1106_deinit(sh1106_handle_t *handle);
 
 /**
  * @brief Clear entire display
